@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── CAREER TAXONOMY ──────────────────────────────
+
+model CareerCluster {
+  id          String         @id @default(cuid())
+  name        String
+  slug        String         @unique
+  description String
+  order       Int            @default(0)
+  careers     CareerField[]
+}
+
+model CareerField {
+  id               String                @id @default(cuid())
+  clusterId        String
+  cluster          CareerCluster         @relation(fields: [clusterId], references: [id])
+  name             String
+  slug             String                @unique
+  plainDescription String
+  hookQuestion     String
+  timelineRange    String
+  order            Int                   @default(0)
+  specializations  CareerSpecialization[]
+}
+
+model CareerSpecialization {
+  id            String      @id @default(cuid())
+  fieldId       String
+  field         CareerField @relation(fields: [fieldId], references: [id])
+  name          String
+  slug          String      @unique
+  description   String?
+  tier          String      @default("popular")
+  // ↑ three values: "popular", "emerging", "niche"
+  //   powers the homepage carousel grouping
+  //   defaults to "popular" so existing data doesn't break
+  didYouKnow    String?
+  // ↑ optional "Did you know the difference?" text
+  //   shown as a tooltip when this career is commonly confused with another
+  confusedWith  String?
+  // ↑ the slug of the career this one is commonly confused with
+  //   e.g. "software-developer" on the software engineer card
+  pathways      Pathway[]
+}
+
+// ─── QUALIFICATIONS ───────────────────────────────
+
+model Qualification {
+  id                String               @id @default(cuid())
+  name              String
+  qualificationType String
+  nqfLevel          Int
+  durationYears     Float
+  description       String?
+  saqaId            String?
+  pathways          Pathway[]
+  programs          InstitutionProgram[]
+}
+
+// ─── INSTITUTIONS ─────────────────────────────────
+
+model Institution {
+  id       String               @id @default(cuid())
+  name     String
+  slug     String               @unique
+  type     String
+  province String
+  website  String?
+  programs InstitutionProgram[]
+}
+
+model InstitutionProgram {
+  id              String        @id @default(cuid())
+  institutionId   String
+  institution     Institution   @relation(fields: [institutionId], references: [id])
+  qualificationId String
+  qualification   Qualification @relation(fields: [qualificationId], references: [id])
+  programUrl      String?
+  isActive        Boolean       @default(true)
+  lastVerified    DateTime      @default(now())
+}
+
+// ─── PATHWAYS ─────────────────────────────────────
+
+model Pathway {
+  id               String               @id @default(cuid())
+  specializationId String
+  specialization   CareerSpecialization @relation(fields: [specializationId], references: [id])
+  qualificationId  String
+  qualification    Qualification        @relation(fields: [qualificationId], references: [id])
+  pathwayType      String
+  isPrimaryPath    Boolean              @default(true)
+  description      String?
+  steps            PathwayStep[]
+  requirements     Requirement[]
+}
+
+model PathwayStep {
+  id            String       @id @default(cuid())
+  pathwayId     String
+  pathway       Pathway      @relation(fields: [pathwayId], references: [id])
+  stepType      String
+  title         String
+  description   String?
+  durationYears Float?
+  order         Int          @default(0)
+  requirements  Requirement[]
+}
+
+// ─── REQUIREMENTS ─────────────────────────────────
+
+model Requirement {
+  id            String             @id @default(cuid())
+  pathwayId     String?
+  pathway       Pathway?           @relation(fields: [pathwayId], references: [id])
+  stepId        String?
+  step          PathwayStep?       @relation(fields: [stepId], references: [id])
+  type          String
+  category      String
+  description   String
+  detail        String?
+  isMandatory   Boolean            @default(true)
+  order         Int                @default(0)
+  costType      String?
+  costAmountMin Float?
+  costAmountMax Float?
+  costNote      String?
+  sources       RequirementSource[]
+}
+
+model RequirementSource {
+  id            String      @id @default(cuid())
+  requirementId String
+  requirement   Requirement @relation(fields: [requirementId], references: [id])
+  sourceName    String
+  sourceType    String
+  sourceUrl     String?
+  verifiedDate  DateTime    @default(now())
+  isPreferred   Boolean     @default(false)
+}
